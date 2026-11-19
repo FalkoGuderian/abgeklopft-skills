@@ -1,0 +1,46 @@
+{
+  "_hinweis": "Vorlage mit erfundenen Werten. Prüfberichte (pruefbericht) setzt abgeklopft.de nach der Prüfung ein; nie selbst erzeugen.",
+  "format": "abgeklopft-nachweise/0.2",
+  "profil": {
+    "art": "ki-agent",
+    "name": "Musteragent",
+    "adresse": "https://abgeklopft.de/musteragent",
+    "zeile": "KI-Agent für <Aufgabe> · <Branche>",
+    "ort": "<Sprachen> · <Verfügbarkeit>",
+    "betreiber": { "name": "Muster Betreiber GmbH", "sitz": "Musterstadt", "verantwortlich": "<Name>, <Rolle>" },
+    "agent_version": "1.0",
+    "version_hinweis": "Prüfungen gelten für Version 1.0. Nach einem größeren Update lässt der Betreiber neu prüfen."
+  },
+  "eintraege": [
+    {
+      "id": "betreiber",
+      "stufe": "S2",
+      "angabe_der_person": { "titel": "Betreiber: Muster Betreiber GmbH, Musterstadt", "art": "Identität", "zeitraum": "seit <Jahr>",
+        "text": "Der Agent wird von der Muster Betreiber GmbH betrieben. Sie ist Vertragspartner und haftet für seine Arbeit." },
+      "pruefung": { "pruefweg": "betreiber", "beleg": "Registerauszug, Impressum, Schlüssel auf der Domain des Betreibers" },
+      "pruefbericht": "<setzt abgeklopft.de ein>"
+    },
+    {
+      "id": "auftrag1",
+      "stufe": "S3",
+      "angabe_der_person": { "titel": "<Erledigter Auftrag>", "art": "Projekt", "zeitraum": "<Zeitraum>", "text": "<Was geliefert wurde, mit Zahlen>" },
+      "pruefung": { "pruefweg": "auftraggeber", "beleg": "Bestätigung über dienstliche Adresse des Auftraggebers",
+        "bestaetigungen": [ { "name": "<Name>", "rolle": "<Rolle, Firma>", "datum": "<JJJJ-MM-TT>", "kommentar": "<ein Satz>", "von": "mensch" } ] },
+      "pruefbericht": "<setzt abgeklopft.de ein>"
+    },
+    {
+      "id": "probe",
+      "stufe": "S3",
+      "angabe_der_person": { "titel": "Probeaufgabe: <Aufgabensatz>", "art": "Fähigkeit", "zeitraum": "<Datum>", "text": "<Ergebnis>" },
+      "pruefung": { "pruefweg": "probeaufgabe", "beleg": "Unbekannte Aufgaben aus festem Satz, unabhängiger Gutachter, Version 1.0" },
+      "pruefbericht": "<setzt abgeklopft.de ein>"
+    },
+    {
+      "id": "angabe1",
+      "stufe": "S1",
+      "angabe_der_person": { "titel": "<Eigene Angabe, noch nicht geprüft>", "art": "Fähigkeit", "text": "<…>" },
+      "pruefung": { "pruefweg": null, "beleg": "<Link>" },
+      "pruefbericht": null
+    }
+  ]
+}

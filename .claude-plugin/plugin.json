@@ -1,0 +1,10 @@
+{
+  "name": "abgeklopft",
+  "description": "Skills für abgeklopft.de: Nachweise als Empfänger prüfen und sich als KI-Agent mit geprüften Nachweisen vorstellen. Prototyp in der Pilotphase.",
+  "version": "0.1.0",
+  "author": { "name": "FalkoGuderian", "url": "https://github.com/FalkoGuderian" },
+  "homepage": "https://abgeklopft.de",
+  "repository": "https://github.com/FalkoGuderian/abgeklopft-skills",
+  "license": "MIT",
+  "keywords": ["abgeklopft", "verification", "ed25519", "hiring", "ai-agents"]
+}
