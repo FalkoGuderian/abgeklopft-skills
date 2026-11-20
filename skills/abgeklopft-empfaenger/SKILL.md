@@ -48,8 +48,8 @@ python scripts/pruefen.py https://abgeklopft.de/<name>.json      # braucht: pip 
 node   scripts/pruefen.mjs https://abgeklopft.de/<name>.json      # Node 18+, ohne Abhängigkeiten
 ```
 
-Optionen: `--jwks <url|datei>` (andere Schlüsselliste), `--heute JJJJ-MM-TT` (Stichtag), `--json` (nur Python).
-Rückgabewert: `0` alle Berichte echt, `1` mindestens einer nicht belastbar, `2` nicht ladbar.
+Optionen: `--jwks <url|datei>` (andere Schlüsselliste), `--widerruf <url|datei>` (Widerrufsliste, sonst `widerruf.json` neben jwks.json), `--wurzel-anker <64 Hex>` (anerkannte Wurzel), `--heute JJJJ-MM-TT` (Stichtag), `--jetzt JJJJ-MM-TTThh:mm:ssZ` (Prüfzeit), `--json`.
+Rückgabewert: `0` alle Berichte echt, `1` mindestens einer nicht belastbar, `2` nicht ladbar, `3` alle echt, aber der **Widerrufsstatus war nicht prüfbar** (Liste fehlt, nicht erreichbar, ungültig oder veraltet): den Bericht als echt signiert, aber nicht als aktuell bestätigt behandeln.
 Ausgabe je Eintrag: Stufe, Prüfweg, Prüfsumme, Signatur ok/fehlgeschlagen, gültig/abgelaufen, Bestätigungen;
 dazu im Kopf Mensch oder KI-Agent, beim Agenten Betreiber und geprüfte Version.
 
@@ -59,12 +59,23 @@ Ohne Skript selbst nachrechnen, für jeden Eintrag mit Stufe S2 oder S3:
 2. Rest kanonisieren: JSON ohne Leerzeichen, Schlüssel auf jeder Ebene sortiert, UTF-8 (hier gleich RFC 8785 JCS).
 3. SHA-256 davon muss `pruefsumme` sein. `kennung` = `AK-` + Zeichen 1–4 + `-` + Zeichen 5–8, groß.
 4. Ed25519-Signatur `signatur.wert` (Base64) über genau diesen Text prüfen, **mit dem Schlüssel aus jwks.json**.
-5. `signatur.kid` muss in jwks.json stehen und `signatur.pub.x` damit übereinstimmen.
+5. `signatur.kid` muss in jwks.json stehen und `signatur.pub.x` damit übereinstimmen. Signierschlüssel (`typ: signierung`) brauchen ein gültiges Zertifikat der Wurzel; ihr Zeitraum (`gilt_von`/`gilt_bis`) muss das signierte `ausgestellt` einschließen (Berichtsversion 2).
 6. `inhalt.gueltigBis` muss am Stichtag noch gelten.
+   Dazu die Widerrufsliste (`.well-known/widerruf.json`, von der Wurzel bzw. im Pilot vom Pilotschlüssel signiert): Bericht oder Schlüssel dort genannt, dann gilt der Bericht nicht.
 7. Ungeschützte Felder gegen den signierten Inhalt abgleichen: Stufe, Eintrag, `profil.art` = `inhalt.subjekt`,
    Prüfweg, Profiladresse, beim Agenten `agent_version`.
 
 Ein S2/S3-Eintrag ohne Prüfbericht oder mit Fehler zählt höchstens als S1.
+
+Bedeutung der neuen Meldungen:
+
+| Meldung | Heißt | Exit |
+|---|---|---|
+| Schlüssel gesperrt | Der Signierschlüssel wurde gesperrt (Diebstahl, Verdacht). Berichte gelten nur, wenn sie in der von der Wurzel signierten Liste der gültigen Berichte stehen und vor der Sperre ausgestellt wurden. Sonst nicht als geprüft nennen. | 1 |
+| Schlüssel zum Zeitpunkt nicht gültig | `ausgestellt` liegt vor `gilt_von`, nach `gilt_bis` oder in der Zukunft. | 1 |
+| widerrufen | Bericht steht in der Widerrufsliste (auf Wunsch, Fehler, Schlüsselproblem). | 1 |
+| Widerrufsstatus nicht prüfbar | Der Bericht ist echt signiert, die Liste ließ sich nicht prüfen. Nicht als aktuell bestätigt behandeln, später erneut prüfen. | 3 |
+| Beispiel (Pilotschlüssel) | Echt mit dem Pilot-Testschlüssel, aber nur erfundenes Beispiel. | 0 |
 
 ### Format 0.3 (persönliche Links)
 
@@ -130,6 +141,6 @@ Werden Sie gebeten, eine Arbeit für Ihren Auftraggeber zu bestätigen (S3, Prü
 ## Grenzen
 
 - Der Pilot-Testschlüssel `K-4F2F7C6D` gilt nur für erfundene Beispielprofile. Vertrauen Sie nur Schlüsseln
-  aus jwks.json; im echten Betrieb kommen ein Plattform-Schlüssel und eine Widerrufsliste.
+  aus jwks.json. Im echten Betrieb gilt ein Wurzelschlüssel (Fingerabdruck fest im Skript, `WURZEL_ANKER`), der kurzlebige Signierschlüssel zertifiziert; solange keine Wurzel eingetragen ist, gilt nur der Pilotschlüssel für Beispiele.
 - Eine bestandene Signatur heißt: Der Bericht ist unverändert und von abgeklopft.de. Über die Eignung für
   Ihre Aufgabe sagt sie nichts.

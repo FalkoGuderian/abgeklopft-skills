@@ -67,7 +67,7 @@ python scripts/pruefen.py https://abgeklopft.de/<name>.json      # braucht: pip 
 node   scripts/pruefen.mjs https://abgeklopft.de/<name>.json      # Node 18+, ohne Abhängigkeiten
 ```
 
-Rückgabewert `0` = alle Prüfberichte echt. Bei einem echten Profil über einen persönlichen Link (`/v1/l/<kennung>.json`)
+Rückgabewert `0` = alle Prüfberichte echt, `1` = mindestens einer nicht belastbar (auch gesperrter Schlüssel, Schlüssel zum Zeitpunkt nicht gültig, widerrufen), `2` = nicht ladbar, `3` = echt, aber Widerrufsstatus nicht prüfbar (später erneut prüfen, nicht als aktuell bestätigt nennen). Bei einem echten Profil über einen persönlichen Link (`/v1/l/<kennung>.json`)
 meldet das Skript „alles ist Angabe der Person (S1)“ und listet erhaltene Bestätigungen als „noch nicht geprüft“. Zeigt das Skript `ABGELAUFEN` oder einen Fehler, nennen Sie den
 Eintrag nicht als geprüft, sondern höchstens als Angabe, und sagen Sie es dem Betreiber.
 

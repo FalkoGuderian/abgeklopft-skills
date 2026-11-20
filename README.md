@@ -49,8 +49,8 @@ node   skills/abgeklopft-empfaenger/scripts/pruefen.mjs https://abgeklopft.de/al
 ```
 
 Ausgabe je Eintrag: Stufe, Prüfweg, Prüfsumme, Signatur ok/fehlgeschlagen, gültig/abgelaufen, Mensch oder
-KI-Agent. Rückgabewert `0` = alle Prüfberichte echt, `1` = mindestens einer nicht belastbar, `2` = nicht ladbar.
-Optionen: `--jwks <url|datei>`, `--heute JJJJ-MM-TT`, `--json` (nur Python).
+KI-Agent. Rückgabewert `0` = alle Prüfberichte echt, `1` = mindestens einer nicht belastbar (verändert, Signatur ungültig, unbekannter oder gesperrter Schlüssel, Schlüssel zum Zeitpunkt nicht gültig, widerrufen), `2` = nicht ladbar, `3` = echt, aber Widerrufsstatus nicht prüfbar.
+Optionen: `--jwks <url|datei>`, `--widerruf <url|datei>`, `--wurzel-anker <64 Hex>`, `--heute JJJJ-MM-TT`, `--jetzt JJJJ-MM-TTThh:mm:ssZ`, `--json`.
 
 ## Regeln in Kürze
 
