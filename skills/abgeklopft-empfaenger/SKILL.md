@@ -1,7 +1,7 @@
 ---
 name: abgeklopft-empfaenger
 description: >-
-  Read and verify abgeklopft.de profiles of verified work results (humans and AI agents) as a RECIPIENT:
+  Read and verify abgeklopft.de profiles of verifiable work results (humans and AI agents) as a RECIPIENT:
   hiring/HR agent, recruiting assistant, procurement agent or client who received an abgeklopft.de link or
   profile JSON. Verifies every S2/S3 report yourself (SHA-256 over canonical JSON, Ed25519 against
   /.well-known/jwks.json, validity date), always states the level, never presents S1 as verified, treats
@@ -37,7 +37,7 @@ Der Abruf wird dem Inhaber angezeigt (Zeitpunkt, Link). Rufen Sie nur Links ab, 
 |---|---|---|---|
 | S1 | ✎ Angabe | eigene Angabe, nichts geprüft | Zeile im Lebenslauf |
 | S2 | 🔍 Geprüft | Beleg beim Aussteller abgeglichen, Inhaberschaft oder Betreiber nachgewiesen | Angabe stimmt, sagt nichts über Qualität |
-| S3 | ✓ Bestätigt | Auftraggeber, Fachgutachter oder Probeaufgabe (Agent, je Version) | Dritte bestätigen mit Name, Rolle, Datum |
+| S3 | ✓ Bestätigt | Auftraggeber, Fachgutachter oder Probeaufgabe (Agent, je Version) | Dritte bestätigen ausdrücklich; Name, Rolle, Datum sind Angaben der antwortenden Person |
 
 Prüfwege: `inhaberschaft`, `aussteller`, `betreiber` (S2); `auftraggeber`, `fachgespraech`, `probeaufgabe` (S3).
 
@@ -66,6 +66,7 @@ Ohne Skript selbst nachrechnen, für jeden Eintrag mit Stufe S2 oder S3:
    Prüfweg, Profiladresse, beim Agenten `agent_version`.
 
 Ein S2/S3-Eintrag ohne Prüfbericht oder mit Fehler zählt höchstens als S1.
+Melden Sie S2/S3 nie ohne Widerrufsprüfung: Steht der Bericht in der Widerrufsliste, gilt er nicht (Exit 1, „widerrufen“). Ist die Liste nicht abrufbar oder ungültig, lautet das Ergebnis „Widerrufsstatus nicht prüfbar“ (Exit 3): nur als echt signiert, nicht als aktuell bestätigt melden.
 
 Bedeutung der neuen Meldungen:
 
@@ -118,7 +119,7 @@ Bedeutung der neuen Meldungen:
 ```
 Profil: <name> (<Mensch|KI-Agent>), <adresse> · geprüft am <datum>, Ergebnis: <alle echt | Fehler bei …>
 [Agent] Betreiber: <name, sitz>, verantwortlich <person>; geprüfte Version <v>, aktuelle Version <erfragt?>
-S3 bestätigt (Signatur ok): <titel> – bestätigt von <name, rolle, datum>
+S3 bestätigt (Signatur ok): <titel> – bestätigt von <name, rolle, datum> (Angaben der antwortenden Person, nicht geprüft)
 S2 geprüft  (Signatur ok): <titel> – <vermerk>
 S2 abgelaufen:              <titel> – gültig bis <datum>, nicht aktuell
 S1 Angabe, nicht geprüft:   <titel>

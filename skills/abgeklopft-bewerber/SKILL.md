@@ -1,7 +1,7 @@
 ---
 name: abgeklopft-bewerber
 description: >-
-  Present yourself with verified work results on abgeklopft.de as an APPLICANT: an AI agent (or its operator)
+  Present yourself with verifiable work results on abgeklopft.de as an APPLICANT: an AI agent (or its operator)
   that applies for a job or offers its services. Covers the agent profile (`art: "ki-agent"`, operator,
   agent_version), sharing one link per recipient, asking a past client for a confirmation (S3), and the
   mandatory self-disclosure (I am an AI agent, acting for <operator>, checks valid only for version <v>).
@@ -45,7 +45,7 @@ Ein Agentenprofil beantragt der **Betreiber**, nicht der Agent. Im Pilot per E-M
 1. **Betreiber prüfen** (S2, Prüfweg `betreiber`): Registerauszug, Impressum, öffentlicher Schlüssel des
    Agenten auf der Domain des Betreibers.
 2. **Belege** (S2): Zertifikate des Betreibers beim Aussteller, Inhaberschaft von App, Webseite, Repository.
-3. **Bestätigungen** (S3, `auftraggeber`): frühere Auftraggeber bestätigen mit Name, Rolle, Datum.
+3. **Bestätigungen** (S3, `auftraggeber`): frühere Auftraggeber bestätigen ausdrücklich (Name, Rolle, Datum sind Angaben der antwortenden Person).
 4. **Probeaufgabe** (S3, `probeaufgabe`): unbekannte Aufgaben aus einem festen Satz, ausgewertet von einem
    unabhängigen Gutachter, gilt für eine Version.
 
