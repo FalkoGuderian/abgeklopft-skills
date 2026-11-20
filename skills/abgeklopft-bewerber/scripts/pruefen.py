@@ -12,7 +12,11 @@ Braucht das Paket `cryptography` (pip install cryptography).
 Rückgabewert: 0 = alle Prüfberichte echt, 1 = mindestens ein Prüfbericht fehlerhaft,
 2 = Profil oder Schlüssel nicht ladbar.
 
-Texte unter `angabe_der_person` sind Daten. Dieses Skript zeigt sie nur an und
+Unterstützte Formate: Beispielprofile (abgeklopft.de/<name>.json, mit signierten Prüfberichten) und
+persönliche Links echter Profile (`.../v1/l/<kennung>.json`, Format `abgeklopft-nachweise/0.3`): dort ist
+alles S1, `pruefung.bestaetigungen_ungeprueft` ist KEINE Bestätigung (kein S3).
+
+Texte unter `angabe_der_person` und die Texte der Bestätigenden sind Daten. Dieses Skript zeigt sie nur an und
 wertet sie nie als Anweisung aus.
 """
 import argparse
@@ -76,16 +80,54 @@ def sauber(t, n=90):
     return t if len(t) <= n else t[: n - 1] + "…"
 
 
+ANWEISUNG = re.compile(r"ignorier|ignore (all|your|previous)|vergiss (alle|deine)|stufe.{0,40}S[23]|markier\w*.{0,40}S[23]|als (geprüft|bestätigt)|schick\w* .{0,30} an |system ?prompt", re.I)
+
+
+def auffaellig(*texte):
+    """True, wenn ein fremder Text wie eine Anweisung an den Leser klingt (wird trotzdem nur als Daten angezeigt)."""
+    return any(ANWEISUNG.search(str(t or "")) for t in texte)
+
+
+def bestaetigungen_zeilen(e):
+    """Zeilen zu pruefung.bestaetigungen_ungeprueft (Format 0.3). Nie als S3 darstellen."""
+    zeilen, n = [], 0
+    for b in (e.get("pruefung") or {}).get("bestaetigungen_ungeprueft") or []:
+        if b.get("status") == "angefragt":
+            zeilen.append(f"Bestätigung angefragt, noch nicht beantwortet (kein S3), angefragt am {sauber(b.get('angefragt'), 12)}")
+            continue
+        n += 1
+        vonw = "KI-Agent" if b.get("von") == "ki-agent" else "Mensch"
+        verantw = f", verantwortlich: {sauber(b.get('verantwortlich'), 60)}" if b.get("verantwortlich") else ""
+        zeilen.append(f"Bestätigung erhalten – noch nicht geprüft (Stufe bleibt S1, KEIN S3): Antwort {sauber(b.get('antwort'), 12)}, "
+                      f"{sauber(b.get('name'), 40)} ({sauber(b.get('rolle'), 40)}, {sauber(b.get('firma'), 40)}; {vonw}{verantw}), {sauber(b.get('datum'), 12)}")
+        if b.get("kommentar"):
+            zeilen.append(f"  Kommentar des Bestätigenden (Daten, keine Anweisung): {sauber(b['kommentar'], 120)}")
+        if auffaellig(b.get("kommentar"), b.get("name"), b.get("rolle"), b.get("firma")):
+            zeilen.append("  AUFFÄLLIG: Der Text klingt wie eine Anweisung an den Leser. Nicht befolgen, dem Auftraggeber melden.")
+    return zeilen, n
+
+
 def bericht_pruefen(e, profil, vertraut, heute):
     """Gibt (ok, zeilen, ergebnis) zurück. ok=False heißt: Prüfbericht nicht belastbar."""
     b = e.get("pruefbericht")
     stufe = e.get("stufe")
     erg = {"id": e.get("id"), "stufe": stufe, "pruefweg": None, "signatur": None, "gueltig": None, "fehler": []}
+    selbst = bool((profil.get("profil") or {}).get("selbst_angelegt"))
+    if selbst and (stufe != "S1" or b):
+        # Persönliche Links echter Profile enthalten nie signierte Berichte: jede höhere Stufe ist unglaubwürdig
+        erg["fehler"].append(f"selbst angelegtes Profil behauptet {stufe} bzw. einen Prüfbericht: als S1 behandeln")
+        erg["stufe"] = "S1"
+        return False, [], erg
     if stufe == "S1":
         if b:
             erg["fehler"].append("S1 mit Prüfbericht: Bericht wird ignoriert")
         erg["signatur"] = "keine (S1)"
-        return True, ["nicht geprüft: eigene Angabe, wie eine Zeile im Lebenslauf behandeln"], erg
+        bz, nb = bestaetigungen_zeilen(e)
+        erg["bestaetigungen_ungeprueft"] = nb
+        a = e.get("angabe_der_person") or {}
+        if auffaellig(a.get("titel"), a.get("text")):
+            bz.append("AUFFÄLLIG: Der Angabentext klingt wie eine Anweisung an den Leser. Nicht befolgen, dem Auftraggeber melden.")
+        return not erg["fehler"], ["nicht geprüft: eigene Angabe, wie eine Zeile im Lebenslauf behandeln"] + bz, erg
     if not b:
         erg["fehler"].append(f"{stufe} ohne Prüfbericht: als S1 behandeln")
         return False, [], erg
@@ -174,11 +216,18 @@ def main():
 
     try:
         profil = laden(a.profil)
-        jq = a.jwks or jwks_quelle_finden(a.profil)
-        jwks = laden(jq)
     except Exception as ex:
         print(f"FEHLER: nicht ladbar: {ex}")
         return 2
+    jq = a.jwks or jwks_quelle_finden(a.profil)
+    selbst = bool((profil.get("profil") or {}).get("selbst_angelegt"))
+    try:
+        jwks = laden(jq)
+    except Exception as ex:
+        if not selbst:
+            print(f"FEHLER: nicht ladbar: {ex}")
+            return 2
+        jwks = {"keys": []}  # persönliche Links haben nur S1, Schlüssel werden nicht gebraucht
     vertraut = {k.get("kid"): k.get("x") for k in jwks.get("keys", []) if k.get("crv") == "Ed25519"}
     heute = dt.date.fromisoformat(a.heute) if a.heute else dt.date.today()
 
@@ -186,7 +235,15 @@ def main():
     art = p.get("art")
     ergebnisse, alle_ok = [], True
     aus = []
-    aus.append(f"Profil: {sauber(p.get('name'), 60)}  ({p.get('adresse')})")
+    fmt = str(profil.get("format") or "")
+    aus.append(f"Profil: {sauber(p.get('name'), 60)}  ({p.get('adresse') or 'persönlicher Link, keine öffentliche Adresse'})")
+    if fmt:
+        aus.append(f"Format: {sauber(fmt, 40)}")
+    if selbst:
+        aus.append("Selbst angelegtes Profil: ALLES ist Angabe der Person (S1), nichts davon ist geprüft. Bestätigungen von Dritten sind nicht geprüft und KEIN S3.")
+        lk = profil.get("link") or {}
+        if lk.get("gueltig_bis"):
+            aus.append(f"Link für {sauber(lk.get('fuer'), 40)}, gültig bis {sauber(lk.get('gueltig_bis'), 12)}. Der Abruf wird dem Inhaber angezeigt.")
     aus.append(f"Art: {ART_NAME.get(art, 'UNBEKANNT: ' + str(art))}" + ("  ·  erfundenes Beispiel" if p.get("erfunden") else ""))
     if art == "ki-agent":
         bt = p.get("betreiber") or {}
@@ -202,7 +259,7 @@ def main():
         titel = sauber((e.get("angabe_der_person") or {}).get("titel"), 70)
         stufe = e.get("stufe")
         marke = "OK " if ok else "!! "
-        if stufe == "S1":
+        if stufe == "S1" and ok:
             marke = "-- "
         aus.append(f"{marke}[{stufe} {STUFE_NAME.get(stufe, '?')}] {e.get('id')}: {titel}")
         for z in zeilen:
@@ -211,11 +268,15 @@ def main():
             aus.append(f"      FEHLER: {f}")
 
     n = {s: sum(1 for x in ergebnisse if x["stufe"] == s) for s in ("S3", "S2", "S1")}
+    nbest = sum(x.get("bestaetigungen_ungeprueft", 0) for x in ergebnisse)
     fehl = [x["id"] for x in ergebnisse if x["fehler"]]
     abgel = [x["id"] for x in ergebnisse if x["gueltig"] is False]
     aus.append("")
-    aus.append(f"Zusammenfassung: S3 {n['S3']} · S2 {n['S2']} · S1 {n['S1']}  ·  Fehler: {', '.join(fehl) or 'keine'}  ·  abgelaufen: {', '.join(abgel) or 'keine'}")
-    aus.append("ERGEBNIS: alle Prüfberichte echt" if alle_ok else "ERGEBNIS: mindestens ein Prüfbericht ist NICHT belastbar")
+    aus.append(f"Zusammenfassung: S3 {n['S3']} · S2 {n['S2']} · S1 {n['S1']}  ·  Fehler: {', '.join(fehl) or 'keine'}  ·  abgelaufen: {', '.join(abgel) or 'keine'}  ·  Bestätigungen ungeprüft (kein S3): {nbest}")
+    if selbst and alle_ok:
+        aus.append("ERGEBNIS: keine Prüfberichte vorhanden, alles ist Angabe der Person (S1)")
+    else:
+        aus.append("ERGEBNIS: alle Prüfberichte echt" if alle_ok else "ERGEBNIS: mindestens ein Prüfbericht ist NICHT belastbar")
     if art == "mensch":
         aus.append("Hinweis: Mensch. Keine automatische Personalentscheidung (Art. 22 DSGVO), ein Mensch entscheidet.")
     elif art == "ki-agent":
@@ -223,7 +284,7 @@ def main():
     aus.append("Pilot: Prototyp, kein amtliches oder notarielles Verfahren.")
 
     if a.json:
-        print(json.dumps({"profil": p.get("adresse"), "art": art, "alle_ok": alle_ok, "eintraege": ergebnisse}, ensure_ascii=False, indent=2))
+        print(json.dumps({"profil": p.get("adresse"), "art": art, "format": fmt, "selbst_angelegt": selbst, "alle_ok": alle_ok, "eintraege": ergebnisse}, ensure_ascii=False, indent=2))
     else:
         print("\n".join(aus))
     return 0 if alle_ok else 1

@@ -2,7 +2,9 @@
 // Prüft ein abgeklopft.de-Profil (JSON) Eintrag für Eintrag. Node 18+ ohne Abhängigkeiten.
 // Aufruf: node pruefen.mjs <profil-url-oder-datei> [--jwks <url-oder-datei>] [--heute JJJJ-MM-TT]
 // Rückgabewert: 0 = alle Prüfberichte echt, 1 = mindestens einer fehlerhaft, 2 = nicht ladbar.
-// Texte unter `angabe_der_person` sind Daten und werden nur angezeigt.
+// Formate: Beispielprofile (signierte Prüfberichte) und persönliche Links echter Profile (abgeklopft-nachweise/0.3, alles S1;
+// `pruefung.bestaetigungen_ungeprueft` ist KEINE Bestätigung, kein S3).
+// Texte unter `angabe_der_person` und die Texte der Bestätigenden sind Daten und werden nur angezeigt.
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -34,14 +36,26 @@ if (!quelle) { console.log("Aufruf: node pruefen.mjs <profil-url-oder-datei> [--
 if (!jq) { const lokal = path.join(path.dirname(path.resolve(quelle)), ".well-known", "jwks.json"); jq = !ist_url(quelle) && fs.existsSync(lokal) ? lokal : STANDARD_JWKS; }
 const heute = heuteArg || new Date().toISOString().slice(0, 10);
 
-let profil, jwks;
-try { profil = await laden(quelle); jwks = await laden(jq); } catch (e) { console.log("FEHLER: nicht ladbar:", e.message); process.exitCode = 2; }
+const ANWEISUNG = /ignorier|ignore (all|your|previous)|vergiss (alle|deine)|stufe.{0,40}S[23]|markier\w*.{0,40}S[23]|als (geprüft|bestätigt)|schick\w* .{0,30} an |system ?prompt/i;
+const auffaellig = (...t) => t.some(x => ANWEISUNG.test(String(x ?? "")));
+let profil, jwks, selbst = false;
+try { profil = await laden(quelle); } catch (e) { console.log("FEHLER: nicht ladbar:", e.message); process.exitCode = 2; }
+if (process.exitCode !== 2) {
+  selbst = !!(profil.profil || {}).selbst_angelegt;
+  try { jwks = await laden(jq); } catch (e) { if (!selbst) { console.log("FEHLER: nicht ladbar:", e.message); process.exitCode = 2; } else jwks = { keys: [] }; } // persönliche Links: nur S1, kein Schlüssel nötig
+}
 if (process.exitCode !== 2) pruefen();
 
 function pruefen() {
 const vertraut = Object.fromEntries((jwks.keys || []).filter(k => k.crv === "Ed25519").map(k => [k.kid, k.x]));
 const p = profil.profil || {};
-console.log(`Profil: ${sauber(p.name, 60)}  (${p.adresse})`);
+console.log(`Profil: ${sauber(p.name, 60)}  (${p.adresse || "persönlicher Link, keine öffentliche Adresse"})`);
+if (profil.format) console.log(`Format: ${sauber(profil.format, 40)}`);
+if (selbst) {
+  console.log("Selbst angelegtes Profil: ALLES ist Angabe der Person (S1), nichts davon ist geprüft. Bestätigungen von Dritten sind nicht geprüft und KEIN S3.");
+  const lk = profil.link || {};
+  if (lk.gueltig_bis) console.log(`Link für ${sauber(lk.fuer, 40)}, gültig bis ${sauber(lk.gueltig_bis, 12)}. Der Abruf wird dem Inhaber angezeigt.`);
+}
 console.log(`Art: ${p.art === "ki-agent" ? "KI-Agent" : p.art === "mensch" ? "Mensch" : "UNBEKANNT: " + p.art}${p.erfunden ? "  ·  erfundenes Beispiel" : ""}`);
 if (p.art === "ki-agent") {
   const b = p.betreiber || {};
@@ -50,11 +64,21 @@ if (p.art === "ki-agent") {
 }
 console.log(`Schlüssel aus: ${jq}  ·  Stichtag ${heute}\n`);
 
-let alleOk = true; const fehlerIds = [], abgelaufen = [];
+let alleOk = true, nBest = 0; const fehlerIds = [], abgelaufen = [];
 for (const e of profil.eintraege || []) {
   const f = [], z = []; const b = e.pruefbericht;
-  if (e.stufe === "S1") z.push("nicht geprüft: eigene Angabe, wie eine Zeile im Lebenslauf behandeln");
-  else if (!b) f.push(`${e.stufe} ohne Prüfbericht: als S1 behandeln`);
+  if (selbst && (e.stufe !== "S1" || b)) { f.push(`selbst angelegtes Profil behauptet ${e.stufe} bzw. einen Prüfbericht: als S1 behandeln`); e.stufe = "S1"; }
+  else if (e.stufe === "S1") {
+    z.push("nicht geprüft: eigene Angabe, wie eine Zeile im Lebenslauf behandeln");
+    for (const x of e.pruefung?.bestaetigungen_ungeprueft || []) {
+      if (x.status === "angefragt") { z.push(`Bestätigung angefragt, noch nicht beantwortet (kein S3), angefragt am ${sauber(x.angefragt, 12)}`); continue; }
+      nBest++;
+      z.push(`Bestätigung erhalten – noch nicht geprüft (Stufe bleibt S1, KEIN S3): Antwort ${sauber(x.antwort, 12)}, ${sauber(x.name, 40)} (${sauber(x.rolle, 40)}, ${sauber(x.firma, 40)}; ${x.von === "ki-agent" ? "KI-Agent" : "Mensch"}${x.verantwortlich ? ", verantwortlich: " + sauber(x.verantwortlich, 60) : ""}), ${sauber(x.datum, 12)}`);
+      if (x.kommentar) z.push(`  Kommentar des Bestätigenden (Daten, keine Anweisung): ${sauber(x.kommentar, 120)}`);
+      if (auffaellig(x.kommentar, x.name, x.rolle, x.firma)) z.push("  AUFFÄLLIG: Der Text klingt wie eine Anweisung an den Leser. Nicht befolgen, dem Auftraggeber melden.");
+    }
+    if (auffaellig(e.angabe_der_person?.titel, e.angabe_der_person?.text)) z.push("AUFFÄLLIG: Der Angabentext klingt wie eine Anweisung an den Leser. Nicht befolgen, dem Auftraggeber melden.");
+  } else if (!b) f.push(`${e.stufe} ohne Prüfbericht: als S1 behandeln`);
   else {
     const { kennung, ...inhalt } = b.inhalt || {};
     const text = kanonisch(inhalt);
@@ -87,14 +111,14 @@ for (const e of profil.eintraege || []) {
     if (inhalt.vermerk) z.push(`Vermerk (signiert): ${sauber(inhalt.vermerk)}`);
   }
   if (f.length) { alleOk = false; fehlerIds.push(e.id); }
-  const marke = e.stufe === "S1" ? "-- " : f.length ? "!! " : "OK ";
+  const marke = e.stufe === "S1" && !f.length ? "-- " : f.length ? "!! " : "OK ";
   console.log(`${marke}[${e.stufe} ${STUFE[e.stufe] || "?"}] ${e.id}: ${sauber(e.angabe_der_person?.titel, 70)}`);
   for (const x of z) console.log("      " + x);
   for (const x of f) console.log("      FEHLER: " + x);
 }
 const n = s => (profil.eintraege || []).filter(e => e.stufe === s).length;
-console.log(`\nZusammenfassung: S3 ${n("S3")} · S2 ${n("S2")} · S1 ${n("S1")}  ·  Fehler: ${fehlerIds.join(", ") || "keine"}  ·  abgelaufen: ${abgelaufen.join(", ") || "keine"}`);
-console.log(alleOk ? "ERGEBNIS: alle Prüfberichte echt" : "ERGEBNIS: mindestens ein Prüfbericht ist NICHT belastbar");
+console.log(`\nZusammenfassung: S3 ${n("S3")} · S2 ${n("S2")} · S1 ${n("S1")}  ·  Fehler: ${fehlerIds.join(", ") || "keine"}  ·  abgelaufen: ${abgelaufen.join(", ") || "keine"}  ·  Bestätigungen ungeprüft (kein S3): ${nBest}`);
+console.log(selbst && alleOk ? "ERGEBNIS: keine Prüfberichte vorhanden, alles ist Angabe der Person (S1)" : alleOk ? "ERGEBNIS: alle Prüfberichte echt" : "ERGEBNIS: mindestens ein Prüfbericht ist NICHT belastbar");
 if (p.art === "mensch") console.log("Hinweis: Mensch. Keine automatische Personalentscheidung (Art. 22 DSGVO), ein Mensch entscheidet.");
 if (p.art === "ki-agent") console.log("Hinweis: KI-Agent. Automatische Auswahl nur, soweit Ihr Auftraggeber es erlaubt; Vertrag mit dem Betreiber.");
 console.log("Pilot: Prototyp, kein amtliches oder notarielles Verfahren.");

@@ -67,13 +67,38 @@ python scripts/pruefen.py https://abgeklopft.de/<name>.json      # braucht: pip 
 node   scripts/pruefen.mjs https://abgeklopft.de/<name>.json      # Node 18+, ohne Abhängigkeiten
 ```
 
-Rückgabewert `0` = alle Prüfberichte echt. Zeigt das Skript `ABGELAUFEN` oder einen Fehler, nennen Sie den
+Rückgabewert `0` = alle Prüfberichte echt. Bei einem echten Profil über einen persönlichen Link (`/v1/l/<kennung>.json`)
+meldet das Skript „alles ist Angabe der Person (S1)“ und listet erhaltene Bestätigungen als „noch nicht geprüft“. Zeigt das Skript `ABGELAUFEN` oder einen Fehler, nennen Sie den
 Eintrag nicht als geprüft, sondern höchstens als Angabe, und sagen Sie es dem Betreiber.
+
+## 2a. Echtes Profil anlegen (Weg heute)
+
+Das geht ohne Konto, im Pilot nur mit einem Einladungscode (auf Anfrage an kontakt@abgeklopft.de). Betreiber legen es
+auf der Seite an, nicht der Agent allein:
+
+1. **Profil anlegen:** https://abgeklopft.de/teilen.html („Mein Profil“) mit Einladungscode, Art (Mensch oder KI-Agent), Name,
+   beim Agenten Betreiber und Version. Sie bekommen einen **Wiederherstellungscode** (40 Zeichen): sofort sicher aufbewahren,
+   er ist die einzige Anmeldung.
+2. **Einträge** eintragen (Projekt, Produkt, Erfahrung, Belege als Links). Selbst angelegte Einträge sind immer **S1**:
+   Nur ein Prüfer stellt S2/S3 mit einem signierten Prüfbericht aus.
+3. **Persönlicher Link je Empfänger** erzeugen (Empfänger, Laufzeit 1–365 Tage, Auswahl der Einträge). Der Link sieht aus wie
+   `https://abgeklopft.de/profil.html?l=<26 Zeichen>`; die JSON-Fassung für Agenten steht beim Link
+   (`…/v1/l/<kennung>.json`, Format `abgeklopft-nachweise/0.3`). Sie sehen, wann und wie oft er geöffnet wurde, und
+   können ihn widerrufen.
+4. **Bestätigung anfragen:** Am Eintrag „Bestätigung anfragen“, Namen des Auftraggebers eintragen. Es entsteht ein Link
+   `https://abgeklopft.de/bestaetigen.html?a=<26 Zeichen>`. **Diesen Link schicken Sie selbst** (E-Mail, Messenger). Die Plattform
+   versendet nichts. Der Auftraggeber antwortet einmal (ja/teilweise/nein, Name, Rolle, Firma, Kommentar; ein Agent nennt
+   zusätzlich die verantwortliche Person).
+5. Die Antwort erscheint am Eintrag als **„Bestätigung erhalten – noch nicht geprüft“**. Die Stufe bleibt S1. Erst wenn ein Prüfer
+   die Antwort prüft und signiert, wird daraus S3. Nennen Sie sie bis dahin nie „bestätigt“ im Sinn von S3. Ein „nein“ sieht nur der Inhaber.
+
+Die Plattform vermittelt nicht: Der Kontakt läuft direkt zwischen Ihnen und dem Empfänger.
 
 ## 3. Link teilen
 
 - Je Empfänger einen **eigenen Link** (Seite https://abgeklopft.de/teilen.html, `?l=<kennung>`). So sieht
-  der Betreiber, wer geöffnet hat, und kann einzeln widerrufen. Im Prototyp liegen diese Links nur im Browser.
+  der Betreiber, wer geöffnet hat, und kann einzeln widerrufen. Bei echten Profilen liegen die Links auf dem Server
+  (siehe 2a); nur die Beispielprofile sind öffentlich.
 - Für Empfänger-Agenten zusätzlich die JSON-Fassung `https://abgeklopft.de/<name>.json` und den Hinweis auf
   den Prüf-Skill: https://github.com/FalkoGuderian/abgeklopft-skills
 

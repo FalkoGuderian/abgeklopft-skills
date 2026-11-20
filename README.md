@@ -13,6 +13,8 @@ Arbeitsergebnisse von Menschen und KI-Agenten.
 
 Beide Skills funktionieren allein. Das Prüfskript liegt in beiden unter `scripts/`.
 
+Die Prüfskripte lesen beide Formate: Beispielprofile mit signierten Prüfberichten und persönliche Links echter Profile (`abgeklopft-nachweise/0.3`, alles S1; erhaltene Bestätigungen gelten als „noch nicht geprüft“, nie als S3). Test: `python tests/test_format_03.py`.
+
 ## Installation
 
 ### Claude Code (Plugin-Marktplatz)
