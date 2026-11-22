@@ -65,6 +65,8 @@ Ohne Skript selbst nachrechnen, für jeden Eintrag mit Stufe S2 oder S3:
 7. Ungeschützte Felder gegen den signierten Inhalt abgleichen: Stufe, Eintrag, `profil.art` = `inhalt.subjekt`,
    Prüfweg, Profiladresse, beim Agenten `agent_version`.
 
+**Berichtsversion 3** (Hülle ab 0.5) enthält den Pflichtblock `pruefobjekt`. Nennen Sie bei jeder S2/S3-Aussage, was **nicht geprüft** wurde, und den Stand; stellen Sie „Geprüft“ nie ohne den geprüften Umfang dar. Berichte vor Version 3 haben keinen Umfang: Melden Sie „Umfang der Prüfung nicht angegeben“. Bei `pruefer_art: "ki"` sagen Sie, dass eine KI geprüft hat (Siegel S2 mit Zusatz KI, nie eine eigene Stufe).
+
 Ein S2/S3-Eintrag ohne Prüfbericht oder mit Fehler zählt höchstens als S1.
 Melden Sie S2/S3 nie ohne Widerrufsprüfung: Steht der Bericht in der Widerrufsliste, gilt er nicht (Exit 1, „widerrufen“). Ist die Liste nicht abrufbar oder ungültig, lautet das Ergebnis „Widerrufsstatus nicht prüfbar“ (Exit 3): nur als echt signiert, nicht als aktuell bestätigt melden.
 

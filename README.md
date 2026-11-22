@@ -52,6 +52,10 @@ Ausgabe je Eintrag: Stufe, Prüfweg, Prüfsumme, Signatur ok/fehlgeschlagen, gü
 KI-Agent. Rückgabewert `0` = alle Prüfberichte echt, `1` = mindestens einer nicht belastbar (verändert, Signatur ungültig, unbekannter oder gesperrter Schlüssel, Schlüssel zum Zeitpunkt nicht gültig, widerrufen), `2` = nicht ladbar, `3` = echt, aber Widerrufsstatus nicht prüfbar.
 Optionen: `--jwks <url|datei>`, `--widerruf <url|datei>`, `--wurzel-anker <64 Hex>`, `--heute JJJJ-MM-TT`, `--jetzt JJJJ-MM-TTThh:mm:ssZ`, `--json`.
 
+## Änderungen
+
+- **0.2.0 (2026-11-22):** Die Prüfskripte lesen Prüfberichte der **Version 3** (Hülle `abgeklopft-nachweise/0.5` oder höher). Version 3 braucht den Pflichtblock `pruefobjekt` (`gegenstand`, `version_stand`, `umfang_geprueft`, `methode`, `nicht_geprueft` oder `nichts_ausgeschlossen: true`); sonst `pruefobjekt_fehlt`, `pruefobjekt_unvollstaendig` oder `pruefobjekt_zu_gross` und der Bericht gilt nicht. Optional: `teil`, `pruefer_art` (`mensch`/`ki`), `beobachtungszeitraum`, `stichprobe`, `fremdpruefung`. Die Ausgabe nennt immer „Geprüft … Nicht geprüft … Stand …“; bei `pruefer_art: "ki"` „geprüft von einer KI (nicht menschlich)“ (Siegel S2 mit Zusatz KI). Berichte der Version 1 und 2 werden unverändert geprüft und mit der Warnung „Umfang der Prüfung nicht angegeben (Bericht vor Format 0.5)“ versehen (kein Fehler, Exit-Code unverändert). Ältere Skript-Fassungen lehnen Version 3 mit `format_nicht_zulaessig` ab. `pruefung.gesamt` und `pruefung.teile` in Profilen werden ignoriert.
+
 ## Regeln in Kürze
 
 - Stufe immer nennen. S1 (eigene Angabe) nie als geprüft darstellen.

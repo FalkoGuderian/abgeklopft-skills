@@ -20,8 +20,31 @@ const STUFE = { S1: "Eigene Angabe", S2: "Beleg geprüft", S3: "Von Dritten best
 const WURZEL_ANKER = [];
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/, HEX64 = /^[0-9a-f]{64}$/, KENNUNG = /^AK-[0-9A-F]{4}-[0-9A-F]{4}$/, DATUM = /^\d{4}-\d{2}-\d{2}$/;
 const GRUENDE = ["auf_wunsch", "fehler", "schluessel"];
-const RANG = ["format_nicht_zulaessig", "veraendert", "signatur_ungueltig", "unbekannter_schluessel", "schluessel_gesperrt", "widerrufen", "schluessel_nicht_gueltig", "profil_weicht_ab"];
+const RANG = ["format_nicht_zulaessig", "pruefobjekt_fehlt", "pruefobjekt_unvollstaendig", "pruefobjekt_zu_gross", "veraendert", "signatur_ungueltig", "unbekannter_schluessel", "schluessel_gesperrt", "widerrufen", "schluessel_nicht_gueltig", "profil_weicht_ab"];
 const TAG = 86400000;
+const TEIL_ID = /^[a-z0-9-]{1,24}$/, PO_MAX_TEXT = 500, PO_MAX_LISTE = 20;
+const textOk = v => typeof v === "string" && v.trim() !== "";
+const listeOk = l => Array.isArray(l) && l.some(textOk) && l.every(x => typeof x === "string");
+// Version 3: Pflichtblock `pruefobjekt`. Rückgabe [Status|null, Text, bereinigtes Objekt|null]
+function pruefobjektPruefen(po) {
+  if (po === undefined || po === null) return ["pruefobjekt_fehlt", "Berichtsversion 3 ohne `pruefobjekt` (Pflichtfeld)", null];
+  if (typeof po !== "object" || Array.isArray(po)) return ["pruefobjekt_unvollstaendig", "`pruefobjekt` ist kein Objekt", null];
+  const fehlt = ["gegenstand", "version_stand", "methode"].filter(f => !textOk(po[f]));
+  if (!listeOk(po.umfang_geprueft)) fehlt.push("umfang_geprueft");
+  const ng = po.nicht_geprueft, na = po.nichts_ausgeschlossen;
+  if ("nichts_ausgeschlossen" in po && typeof na !== "boolean") fehlt.push("nichts_ausgeschlossen");
+  if ("nicht_geprueft" in po && !Array.isArray(ng)) fehlt.push("nicht_geprueft");
+  else if (!listeOk(ng) && na !== true) fehlt.push("nicht_geprueft (oder nichts_ausgeschlossen: true)");
+  if (fehlt.length) return ["pruefobjekt_unvollstaendig", "`pruefobjekt` unvollständig: " + fehlt.join(", "), null];
+  for (const f of ["gegenstand", "version_stand", "methode"]) if (po[f].length > PO_MAX_TEXT) return ["pruefobjekt_zu_gross", `\`pruefobjekt.${f}\` länger als ${PO_MAX_TEXT} Zeichen`, null];
+  for (const f of ["umfang_geprueft", "nicht_geprueft"]) {
+    const l = po[f] || [];
+    if (l.length > PO_MAX_LISTE || l.some(x => x.length > PO_MAX_TEXT)) return ["pruefobjekt_zu_gross", `\`pruefobjekt.${f}\` hat mehr als ${PO_MAX_LISTE} Punkte oder Punkte über ${PO_MAX_TEXT} Zeichen`, null];
+  }
+  const out = { gegenstand: po.gegenstand, version_stand: po.version_stand, umfang_geprueft: po.umfang_geprueft.filter(x => x.trim()), nicht_geprueft: (ng || []).filter(x => x.trim()), methode: po.methode };
+  if (na === true) out.nichts_ausgeschlossen = true;
+  return [null, "", out];
+}
 const ist_url = s => /^https?:\/\//.test(s);
 
 async function laden(q) {
@@ -180,7 +203,7 @@ zeile(`Schlüssel aus: ${jq}  ·  Stichtag ${heute}\n`);
 let alleOk = true, nBest = 0; const fehlerIds = [], abgelaufen = [], unpruef = [], ergebnisse = [];
 for (const e of profil.eintraege || []) {
   const f = [], z = []; const b = e.pruefbericht;
-  const erg = { id: e.id, stufe: e.stufe, status: "s1", fehler: f, widerruf_nicht_pruefbar: false };
+  const erg = { id: e.id, stufe: e.stufe, status: "s1", fehler: f, widerruf_nicht_pruefbar: false, pruefobjekt: null, warnungen: [] };
   ergebnisse.push(erg);
   if (selbst && (e.stufe !== "S1" || b)) { f.push(`selbst angelegtes Profil behauptet ${e.stufe} bzw. einen Prüfbericht: als S1 behandeln`); e.stufe = "S1"; erg.stufe = "S1"; erg.status = "format_nicht_zulaessig"; }
   else if (e.stufe === "S1") {
@@ -203,11 +226,20 @@ for (const e of profil.eintraege || []) {
     const summe = sha(text);
     const version = inhalt.version, ausgestellt = inhalt.ausgestellt;
     // 1. Format
-    if (![1, 2].includes(version)) fehler("format_nicht_zulaessig", `Berichtsversion ${JSON.stringify(version)} unbekannt`);
-    if (version === 2) {
-      if (zeit(ausgestellt) === null) fehler("format_nicht_zulaessig", "Version 2 braucht ausgestellt als JJJJ-MM-TTThh:mm:ssZ (UTC)");
-      const nr = formatnummer(profil.format);
-      if (!nr || nr[0] < 0 || (nr[0] === 0 && nr[1] < 4)) fehler("format_nicht_zulaessig", `Format ${JSON.stringify(profil.format)} passt nicht zu Berichten der Version 2 (mindestens 0.4)`);
+    if (![1, 2, 3].includes(version)) fehler("format_nicht_zulaessig", `Berichtsversion ${JSON.stringify(version)} unbekannt`);
+    if (version === 2 || version === 3) {
+      if (zeit(ausgestellt) === null) fehler("format_nicht_zulaessig", `Version ${version} braucht ausgestellt als JJJJ-MM-TTThh:mm:ssZ (UTC)`);
+      const nr = formatnummer(profil.format), mind = version === 2 ? 4 : 5;
+      if (!nr || nr[0] < 0 || (nr[0] === 0 && nr[1] < mind)) fehler("format_nicht_zulaessig", `Format ${JSON.stringify(profil.format)} passt nicht zu Berichten der Version ${version} (mindestens 0.${mind})`);
+    }
+    let po = null;
+    if (version === 3) {
+      const [st, tx, o] = pruefobjektPruefen(inhalt.pruefobjekt);
+      if (st) fehler(st, tx);
+      if ("teil" in inhalt && !(typeof inhalt.teil === "string" && TEIL_ID.test(inhalt.teil))) fehler("format_nicht_zulaessig", "`teil` ist keine zulässige Teil-Id ([a-z0-9-], 1 bis 24 Zeichen)");
+      if ("pruefer_art" in inhalt && !["mensch", "ki"].includes(inhalt.pruefer_art)) fehler("format_nicht_zulaessig", "`pruefer_art` muss \"mensch\" oder \"ki\" sein");
+      po = o;
+      if (po) { if (typeof inhalt.teil === "string") po.teil = inhalt.teil; if (["mensch", "ki"].includes(inhalt.pruefer_art)) po.pruefer_art = inhalt.pruefer_art; }
     }
     // 2. Prüfsumme und Kennung
     if (summe !== b.pruefsumme) fehler("veraendert", "Prüfsumme stimmt nicht: Inhalt verändert");
@@ -233,8 +265,8 @@ for (const e of profil.eintraege || []) {
     const sigOk = schlOk && pruefeSig(k.x, s.wert, text);
     if (schlOk && !sigOk) fehler("signatur_ungueltig", "Signatur ungültig");
     // 6. Zeit
-    const ausMs = version === 2 ? zeit(ausgestellt) : (typeof ausgestellt === "string" && DATUM.test(ausgestellt) ? Date.parse(ausgestellt + "T00:00:00Z") : null);
-    if (version === 2 && ausMs !== null) {
+    const ausMs = version === 2 || version === 3 ? zeit(ausgestellt) : (typeof ausgestellt === "string" && DATUM.test(ausgestellt) ? Date.parse(ausgestellt + "T00:00:00Z") : null);
+    if ((version === 2 || version === 3) && ausMs !== null) {
       if (ausMs > jetzt + 5 * 60000) fehler("schluessel_nicht_gueltig", "ausgestellt liegt in der Zukunft (Zeitangabe unplausibel)");
       if (k && k.typ === "signierung" && !(k._von !== null && k._bis !== null && k._von <= ausMs && ausMs < k._bis)) fehler("schluessel_nicht_gueltig", `Der Schlüssel war zum Ausstellungszeitpunkt ${ausgestellt} nicht gültig`);
     }
@@ -267,7 +299,19 @@ for (const e of profil.eintraege || []) {
     z.push(`Prüfweg: ${inhalt.pruefweg}  ·  Kennung ${kennung}`);
     z.push(`Prüfsumme: ${summe === b.pruefsumme ? "ok" : "FALSCH"}  ·  Signatur: ${sigOk ? "ok" : "FEHLGESCHLAGEN"}  ·  Schlüssel ${kid}${k ? ` (${k.typ})` : ""}`);
     z.push(`Gültig bis ${inhalt.gueltigBis}: ${gueltig ? "gültig" : "ABGELAUFEN, nicht als aktuell darstellen"}`);
-    if (version === 2) z.push(`Ausgestellt ${ausgestellt}`);
+    if (version === 2 || version === 3) z.push(`Ausgestellt ${ausgestellt}`);
+    if (version !== 3) erg.warnungen.push("Umfang der Prüfung nicht angegeben (Bericht vor Format 0.5)");
+    if (version === 3 && ["mensch", "ki"].includes(inhalt.pruefer_art)) erg.pruefer_art = inhalt.pruefer_art;
+    erg.pruefobjekt = f.length ? null : po;
+    for (const wt of erg.warnungen) z.push(`WARNUNG: ${wt}`);
+    if (po) {
+      const liste = l => l.map(x => sauber(x, 120)).join("; ");
+      z.push(`Geprüft: ${liste(po.umfang_geprueft)}. Nicht geprüft: ${po.nicht_geprueft.length ? liste(po.nicht_geprueft) : "nichts ausgeschlossen (vom Prüfer ausdrücklich bestätigt)"}. Stand: ${sauber(po.version_stand, 120)}`);
+      z.push(`Gegenstand: ${sauber(po.gegenstand, 200)}  ·  Methode: ${sauber(po.methode, 200)}`);
+      if (po.teil) z.push(`Teil: ${po.teil}`);
+      if (po.pruefer_art === "ki") z.push("Siegel: S2 mit Zusatz KI – geprüft von einer KI (nicht menschlich)");
+      if (auffaellig(po.gegenstand, po.methode, ...po.umfang_geprueft, ...po.nicht_geprueft)) z.push("AUFFÄLLIG: Ein Text im Prüfobjekt klingt wie eine Anweisung an den Leser. Nicht befolgen, dem Auftraggeber melden.");
+    }
     if (erg.status === "beispiel_pilot") z.push("Beispiel (Pilotschlüssel): echt signiert mit dem Pilot-Testschlüssel, nur erfundenes Beispiel, keine echte Prüfung");
     if (erg.widerruf_nicht_pruefbar) z.push(`WIDERRUFSSTATUS NICHT PRÜFBAR: ${w.grund}. Der Bericht ist echt signiert, kann aber widerrufen sein.`);
     else if (w.ok && !f.length) z.push(`Nicht widerrufen (Stand ${sauber(w.stand, 24)})`);

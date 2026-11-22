@@ -111,6 +111,36 @@ fall(34, "jwks-Eintrag mit kid, die nicht zu x passt → unbekannter Schlüssel"
 fall(35, "zweiter Signierschlüssel (Rotation) im Fenster → echt", E(0, "echt"), () => ({ profil: profil(bericht(S2, { ausgestellt: "2027-02-20T09:00:00Z" }).b), jwks: welt(), liste: liste(W, [], { stand: "2027-02-18T10:00:00Z" }), jetzt: "2027-02-21T10:00:00Z", heute: "2027-02-21" }));
 fall(36, "alter Bericht nach Rotation (S1, Überlappung) → echt", E(0, "echt"), () => ({ profil: profil(bericht(S1, { ausgestellt: "2027-02-20T09:00:00Z" }).b), jwks: welt(), liste: liste(W, [], { stand: "2027-02-18T10:00:00Z" }), jetzt: "2027-02-21T10:00:00Z", heute: "2027-02-21" }));
 
+// ---- Berichtsversion 3 (Hülle 0.5): Prüfobjekt Pflicht ----
+const PO = (x = {}) => ({ gegenstand: "Android-App Netzlast, Paket de.beispiel.netzlast", version_stand: "Version 2.3.1, Store-Stand 2027-01-09", umfang_geprueft: ["Inhaberschaft des Store-Eintrags", "App läuft auf Pixel 8"], nicht_geprueft: ["Qualität des Codes", "Datenschutzkonformität"], methode: "Abgleich mit Store-Konsole, App 10 Minuten benutzt", ...x });
+const V3 = (po, extra = {}) => ({ version: 3, ...(po === undefined ? {} : { pruefobjekt: po }), ...extra });
+const hue5 = { format: "abgeklopft-nachweise/0.5" };
+const E3 = (exit, status, extra = {}) => ({ exit, status, ...extra });
+const v3fall = (nr, name, erw, ueber, po, opt = hue5) => fall(nr, name, erw, () => ({ profil: profil(bericht(S1, V3(po, ueber)).b, opt), jwks: welt(), liste: leer() }));
+const ohne = (o, k) => { const c = { ...o }; delete c[k]; return c; };
+v3fall(37, "v3 vollständiges Prüfobjekt → echt", E3(0, "echt", { pruefobjekt: true }), {}, PO());
+v3fall(38, "v3 ohne Prüfobjekt → pruefobjekt_fehlt", E3(1, "pruefobjekt_fehlt", { pruefobjekt: false }), {}, undefined);
+v3fall(39, "v3 mit leerem umfang_geprueft → unvollständig", E3(1, "pruefobjekt_unvollstaendig", { pruefobjekt: false }), {}, PO({ umfang_geprueft: [] }));
+v3fall(40, "v3 ohne nicht_geprueft und ohne nichts_ausgeschlossen → unvollständig", E3(1, "pruefobjekt_unvollstaendig"), {}, ohne(PO(), "nicht_geprueft"));
+v3fall(41, "v3 mit nichts_ausgeschlossen true → echt", E3(0, "echt", { pruefobjekt: true }), {}, ohne({ ...PO(), nichts_ausgeschlossen: true }, "nicht_geprueft"));
+v3fall(42, "v3 mit Teil-Id und pruefer_art ki → echt, Zusatz KI", E3(0, "echt", { pruefobjekt: true, pruefer_art: "ki", teil: "frontend-1" }), { teil: "frontend-1", pruefer_art: "ki" }, PO());
+fall(43, "v3 Prüfobjekt nachträglich geändert → verändert", E3(1, "veraendert"), () => { const r = bericht(S1, V3(PO())); r.b.inhalt.pruefobjekt.nicht_geprueft = ["nichts Wesentliches"]; return { profil: profil(r.b, hue5), jwks: welt(), liste: leer() }; });
+fall(44, "v3 Prüfobjekt geändert, Prüfsumme neu → Signatur ungültig", E3(1, "signatur_ungueltig"), () => { const r = bericht(S1, V3(PO())); r.b.inhalt.pruefobjekt.nicht_geprueft = []; r.b.inhalt.pruefobjekt.nichts_ausgeschlossen = true; neuHashen(r.b); return { profil: profil(r.b, hue5), jwks: welt(), liste: leer() }; });
+v3fall(45, "v3 mit Hülle 0.4 → Format nicht zulässig", E3(1, "format_nicht_zulaessig"), {}, PO(), { format: "abgeklopft-nachweise/0.4" });
+v3fall(46, "v3 mit Hülle 0.6 → echt (höhere Minor-Zahl)", E3(0, "echt", { pruefobjekt: true }), {}, PO(), { format: "abgeklopft-nachweise/0.6" });
+v3fall(47, "v3 Text über 500 Zeichen → zu groß", E3(1, "pruefobjekt_zu_gross"), {}, PO({ methode: "x".repeat(501) }));
+v3fall(48, "v3 mehr als 20 Punkte → zu groß", E3(1, "pruefobjekt_zu_gross"), {}, PO({ umfang_geprueft: Array.from({ length: 21 }, (_, i) => "Punkt " + i) }));
+v3fall(49, "v3 genau 500 Zeichen und 20 Punkte → echt", E3(0, "echt"), {}, PO({ methode: "x".repeat(500), nicht_geprueft: Array.from({ length: 20 }, (_, i) => "Nicht " + i) }));
+v3fall(50, "v3 mit weiteren Feldern (beobachtungszeitraum, stichprobe, fremdpruefung, unbekannt) → echt", E3(0, "echt", { pruefobjekt: true }), { beobachtungszeitraum: "2026-10-01/2026-12-31", stichprobe: "30 von 400", fremdpruefung: "TÜV-123", unbekannt_x: "egal" }, PO());
+v3fall(51, "v3 Teil-Id ungültig → Format nicht zulässig", E3(1, "format_nicht_zulaessig"), { teil: "Teil 1!" }, PO());
+v3fall(52, "v3 pruefer_art ungültig → Format nicht zulässig", E3(1, "format_nicht_zulaessig"), { pruefer_art: "roboter" }, PO());
+v3fall(53, "v3 Prüfobjekt ist kein Objekt → unvollständig", E3(1, "pruefobjekt_unvollstaendig"), {}, "alles geprüft");
+v3fall(54, "v3 nichts_ausgeschlossen false und leere Liste → unvollständig", E3(1, "pruefobjekt_unvollstaendig"), {}, PO({ nicht_geprueft: [], nichts_ausgeschlossen: false }));
+fall(55, "v2 mit Feld pruefobjekt (wird ignoriert) → echt, Umfang nicht angegeben", E3(0, "echt", { pruefobjekt: false, warnung: true }), () => ({ profil: profil(bericht(S1, { pruefobjekt: PO() }).b), jwks: welt(), liste: leer() }));
+fall(56, "v2 unverändert → echt, Warnung Umfang nicht angegeben", E3(0, "echt", { pruefobjekt: false, warnung: true }), () => ({ profil: profil(bericht(S1).b), jwks: welt(), liste: leer() }));
+fall(57, "v3 mit pruefung.gesamt im Profil → ignoriert, nur Stufe und Bericht", E3(0, "echt", { pruefobjekt: true }), () => { const p = profil(bericht(S1, V3(PO())).b, hue5); p.eintraege[0].pruefung.gesamt = { stufe: "S1", begrenzt_durch: "teil-x" }; p.eintraege[0].pruefung.teile = [{ id: "a" }]; return { profil: p, jwks: welt(), liste: leer() }; });
+v3fall(58, "v3 in Hülle 0.3 → Format nicht zulässig", E3(1, "format_nicht_zulaessig"), {}, PO(), { format: "abgeklopft-nachweise/0.3" });
+
 for (const f of faelle) {
   const d = path.join(out, String(f.nr).padStart(2, "0"));
   fs.mkdirSync(d, { recursive: true });
