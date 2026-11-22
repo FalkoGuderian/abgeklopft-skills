@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory() as tmp:
     g = subprocess.run(["node", os.path.join(W, "signatur_erzeugen.mjs"), tmp], capture_output=True, text=True, encoding="utf-8")
     pruef(g.returncode == 0, "Testfälle erzeugt", g.stderr)
     faelle = sorted(d for d in os.listdir(tmp) if os.path.isdir(os.path.join(tmp, d)))
-    pruef(len(faelle) >= 58, f"mindestens 58 Fälle ({len(faelle)})")
+    pruef(len(faelle) >= 89, f"mindestens 89 Fälle ({len(faelle)})")
     for d in faelle:
         pfad = os.path.join(tmp, d)
         with open(os.path.join(pfad, "fall.json"), encoding="utf-8") as f:
@@ -62,6 +62,26 @@ with tempfile.TemporaryDirectory() as tmp:
                 pruef((e0.get("pruefobjekt") or {}).get("teil") == erw["teil"], name + " [teil]")
             if "warnung" in erw:
                 pruef(any("nicht angegeben (Bericht vor Format 0.5)" in w for w in e0.get("warnungen", [])), name + " [Warnung Umfang]")
+            # Zusatzerwartungen (Teile, Schritt D1): berechnete Stufe, Gesamtstufe, Teile, Fehler- und Warntexte, Textausgabe
+            if "gesamt" in erw or "text" in erw or "fehler" in erw or "warnung_text" in erw:
+                if "stufe" in erw:
+                    pruef(e0.get("stufe") == erw["stufe"], name + " [berechnete Stufe]", str(e0.get("stufe")))
+                if "gesamt" in erw:
+                    g = e0.get("gesamt") or {}
+                    pruef(g.get("stufe") == erw["gesamt"]["stufe"] and g.get("abgeleitet") == erw["gesamt"]["abgeleitet"]
+                          and g.get("begrenzt_durch") == erw["gesamt"]["begrenzt_durch"] and g.get("regel") == "min_pflichtteile", name + " [gesamt]", str(g))
+                if "teile" in erw:
+                    pruef({t["id"]: t["stufe"] for t in e0.get("teile", [])} == erw["teile"], name + " [Teile]", str(e0.get("teile")))
+                    pruef(all(set(t) >= {"id", "titel", "typ", "pflicht", "stufe", "status", "pruefweg", "pruefobjekt"} for t in e0.get("teile", [])), name + " [Felder je Teil]")
+                if "fehler" in erw:
+                    pruef(any(erw["fehler"] in f for f in e0.get("fehler", [])), name + " [Fehlertext]", str(e0.get("fehler")))
+                if "warnung_text" in erw:
+                    pruef(any(erw["warnung_text"] in w for w in e0.get("warnungen", [])), name + " [Warnung]", str(e0.get("warnungen")))
+                tx = subprocess.run([c for c in cmd if c != "--json"], capture_output=True, text=True, encoding="utf-8").stdout
+                for t in erw.get("text", []):
+                    pruef(t in tx, name + f" [Text: {t[:50]}]")
+                if "stufe" in erw:
+                    pruef(f"[{erw['stufe']} " in tx, name + " [Kopfzeile mit berechneter Stufe]")
             if erw.get("pruefobjekt") or "warnung" in erw:
                 tx = subprocess.run([c for c in cmd if c != "--json"], capture_output=True, text=True, encoding="utf-8").stdout
                 if erw.get("pruefobjekt"):
