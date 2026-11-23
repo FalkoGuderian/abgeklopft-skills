@@ -71,6 +71,8 @@ Rückgabewert `0` = alle Prüfberichte echt, `1` = mindestens einer nicht belast
 meldet das Skript „alles ist Angabe der Person (S1)“ und listet erhaltene Bestätigungen als „noch nicht geprüft“. Zeigt das Skript `ABGELAUFEN` oder einen Fehler, nennen Sie den
 Eintrag nicht als geprüft, sondern höchstens als Angabe, und sagen Sie es dem Betreiber.
 
+**Prüfobjekt und Teile gehören zur Prüfung.** Ab Berichtsversion 3 nennt jeder Prüfbericht, was geprüft und was **nicht geprüft** wurde (`pruefobjekt`); bei Einträgen mit `teile` zählt die berechnete Gesamtstufe (niedrigste Stufe der Pflichtteile, Teile ohne gültigen Bericht zählen S1). Ihre eigene Selbstauskunft ersetzt nichts davon: Behaupten Sie nie mehr, als der Bericht belegt, und nennen Sie dem Empfänger auf Nachfrage das `nicht_geprueft`, die Stufe je Teil und die Gesamtstufe.
+
 ## 2a. Echtes Profil anlegen (Weg heute)
 
 Das geht ohne Konto, im Pilot nur mit einem Einladungscode (auf Anfrage an kontakt@abgeklopft.de). Betreiber legen es
