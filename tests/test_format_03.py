@@ -52,13 +52,22 @@ for skill in ("abgeklopft-empfaenger", "abgeklopft-bewerber"):
         os.unlink(tmp)
         pruef(code == 1 and "behauptet S3" in out and "[S1" in out, f"{t}: behauptetes S3 im 0.3-Profil wird als S1 + Fehler gemeldet", code)
 
-# ältere Formate weiter (Beispielprofil im Hauptordner, falls vorhanden)
-alex = os.path.abspath(os.path.join(R, "..", "alex.json"))
+# ältere Formate weiter: Beispielprofil im Format 0.2 (Berichtsversion 1) als Fixture (alex.json im Hauptordner ist seit Schritt E Teil 2 Format 0.5)
+alex = os.path.join(W, "fixtures", "alex_0.2.json")
 jw = os.path.abspath(os.path.join(R, "..", ".well-known", "jwks.json"))
 if os.path.exists(alex) and os.path.exists(jw):
     for spr in ("py", "mjs"):
         code, out = lauf("abgeklopft-empfaenger", spr, alex, jw, "--heute", "2026-11-20")
-        pruef(code == 0 and "S3 2 · S2 3 · S1 3" in out, f"älteres Format (alex.json) {spr}: weiter echt", code)
+        pruef(code == 0 and "S3 2 · S2 3 · S1 3" in out, f"älteres Format (alex_0.2.json, Version 1) {spr}: weiter echt", code)
+# neue Beispielprofile im Hauptordner (Format 0.5, Berichtsversion 3 mit Prüfobjekt, Teile, Prozess)
+alex_neu = os.path.abspath(os.path.join(R, "..", "alex.json"))
+bl_neu = os.path.abspath(os.path.join(R, "..", "belegleser.json"))
+if os.path.exists(alex_neu) and os.path.exists(bl_neu) and os.path.exists(jw):
+    for spr in ("py", "mjs"):
+        code, out = lauf("abgeklopft-empfaenger", spr, alex_neu, jw, "--heute", "2026-11-23")
+        pruef(code == 0 and "ERGEBNIS: alle Prüfberichte echt" in out and "Gesamtstufe: S2 (abgeleitet), begrenzt durch: datenmodell, auswertung" in out and "Teil betrieb (prozess, optional): S1" in out and "prozess_stichprobe" in out and "Qualität und Wirksamkeit des Prozesses" in out, f"alex.json (0.5) {spr}: Teile, Gesamtstufe S2, Prozess, Prüfobjekt", code)
+        code, out = lauf("abgeklopft-empfaenger", spr, bl_neu, jw, "--heute", "2026-11-23")
+        pruef(code == 0 and "ERGEBNIS: alle Prüfberichte echt" in out and "Nicht geprüft:" in out, f"belegleser.json (0.5) {spr}: echt, mit Prüfobjekt", code)
 os.unlink(JW)
 print(f"\n{ok}/{ok+fehl} grün")
 sys.exit(1 if fehl else 0)
