@@ -68,6 +68,22 @@ if os.path.exists(alex_neu) and os.path.exists(bl_neu) and os.path.exists(jw):
         pruef(code == 0 and "ERGEBNIS: alle Prüfberichte echt" in out and "Gesamtstufe: S2 (abgeleitet), begrenzt durch: datenmodell, auswertung" in out and "Teil betrieb (prozess, optional): S1" in out and "prozess_stichprobe" in out and "Qualität und Wirksamkeit des Prozesses" in out, f"alex.json (0.5) {spr}: Teile, Gesamtstufe S2, Prozess, Prüfobjekt", code)
         code, out = lauf("abgeklopft-empfaenger", spr, bl_neu, jw, "--heute", "2026-11-23")
         pruef(code == 0 and "ERGEBNIS: alle Prüfberichte echt" in out and "Nicht geprüft:" in out, f"belegleser.json (0.5) {spr}: echt, mit Prüfobjekt", code)
+# Teil-Typ daten wird akzeptiert, ein unbekannter Typ weiter abgelehnt (Kopie von alex.json, Original unverändert)
+if os.path.exists(alex_neu) and os.path.exists(jw):
+    for typ, erwartet_fehler in (("daten", False), ("ding", True)):
+        with open(alex_neu, encoding="utf-8") as f:
+            j = json.load(f)
+        for e in j["eintraege"]:
+            if "teile" in e.get("angabe_der_person", {}):
+                e["angabe_der_person"]["teile"][0]["typ"] = typ
+                break
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
+            json.dump(j, f)
+            tmp = f.name
+        for spr in ("py", "mjs"):
+            code, out = lauf("abgeklopft-empfaenger", spr, tmp, jw, "--heute", "2026-11-23")
+            pruef(("typ unbekannt" in out) == erwartet_fehler, f"Teil-Typ {typ} {spr}: " + ("abgelehnt (typ unbekannt)" if erwartet_fehler else "akzeptiert (kein typ unbekannt)"), out[-300:])
+        os.unlink(tmp)
 os.unlink(JW)
 print(f"\n{ok}/{ok+fehl} grün")
 sys.exit(1 if fehl else 0)

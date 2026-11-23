@@ -60,7 +60,7 @@ RANG = ["format_nicht_zulaessig", "teile_ungueltig", "teile_zyklus", "pruefobjek
 UTC = dt.timezone.utc
 TEIL_ID = re.compile(r"^[a-z0-9-]{1,24}$")
 PO_MAX_TEXT, PO_MAX_LISTE = 500, 20
-TEIL_TYPEN = ("produkt", "prozess", "dienstleistung", "dokument", "abschluss", "sonstiges")
+TEIL_TYPEN = ("produkt", "prozess", "dienstleistung", "dokument", "daten", "abschluss", "sonstiges")
 TEIL_ARTEN = {"zeitlich": ("nach_ende", "nach_start", "gleichzeitig"), "raeumlich": ("gleicher_ort", "anderer_ort"),
               "logisch": ("setzt_voraus", "nutzt", "ersetzt", "ist_variante_von")}
 TEILE_MAX = 12

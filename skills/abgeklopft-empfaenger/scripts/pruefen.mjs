@@ -47,7 +47,7 @@ function pruefobjektPruefen(po) {
 }
 
 // Teile eines Eintrags (`angabe_der_person.teile`): Modell prüfen. Rückgabe [Status|null, Text, bereinigte Liste|null]
-const TEIL_TYPEN = ["produkt", "prozess", "dienstleistung", "dokument", "abschluss", "sonstiges"];
+const TEIL_TYPEN = ["produkt", "prozess", "dienstleistung", "dokument", "daten", "abschluss", "sonstiges"];
 const TEIL_ARTEN = { zeitlich: ["nach_ende", "nach_start", "gleichzeitig"], raeumlich: ["gleicher_ort", "anderer_ort"], logisch: ["setzt_voraus", "nutzt", "ersetzt", "ist_variante_von"] };
 const TEILE_MAX = 12, STUFE_NR = { S1: 1, S2: 2, S3: 3 };
 const istObj = o => o !== null && typeof o === "object" && !Array.isArray(o);
