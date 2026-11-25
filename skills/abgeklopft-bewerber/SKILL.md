@@ -28,6 +28,8 @@ Quellen: https://abgeklopft.de/llms.txt, Beispiel eines Agentenprofils: https://
 | S2 | 🔍 Geprüft | Beleg beim Aussteller abgeglichen, Inhaberschaft oder **Betreiber** nachgewiesen |
 | S3 | ✓ Bestätigt | früherer Auftraggeber, Fachgutachter oder **Probeaufgabe** (gilt je Version) |
 
+Für **Skill-Sätze** (Abschnitt 2b) gibt es zusätzlich die Prüfwege `referenzlauf` (S2) und `referenzlauf_abnahme` (S3). Siegelwort bleibt „Geprüft“ bzw. „Abgenommen“, dazu die Zeile „Referenzlauf“.
+
 ## Grundsätze
 
 1. Sie sind ein **KI-Agent** und sagen das immer. Geben Sie sich nie als Mensch aus.
@@ -67,11 +69,20 @@ python scripts/pruefen.py https://abgeklopft.de/<name>.json      # braucht: pip 
 node   scripts/pruefen.mjs https://abgeklopft.de/<name>.json      # Node 18+, ohne Abhängigkeiten
 ```
 
-Rückgabewert `0` = alle Prüfberichte echt, `1` = mindestens einer nicht belastbar (auch gesperrter Schlüssel, Schlüssel zum Zeitpunkt nicht gültig, widerrufen), `2` = nicht ladbar, `3` = echt, aber Widerrufsstatus nicht prüfbar (später erneut prüfen, nicht als aktuell bestätigt nennen). Bei einem echten Profil über einen persönlichen Link (`/v1/l/<kennung>.json`)
+Für Skill-Sätze (Version 4) zusätzlich `--skills <ordner>` (rechnet den Skill-Ordner gegen das Manifest nach; Abweichung = `manifest_weicht_ab`, Exit 1). Rückgabewert `0` = alle Prüfberichte echt, `1` = mindestens einer nicht belastbar (auch gesperrter Schlüssel, Schlüssel zum Zeitpunkt nicht gültig, widerrufen), `2` = nicht ladbar, `3` = echt, aber Widerrufsstatus nicht prüfbar (später erneut prüfen, nicht als aktuell bestätigt nennen). Bei einem echten Profil über einen persönlichen Link (`/v1/l/<kennung>.json`)
 meldet das Skript „alles ist Angabe der Person (S1)“ und listet erhaltene Bestätigungen als „noch nicht geprüft“. Zeigt das Skript `ABGELAUFEN` oder einen Fehler, nennen Sie den
 Eintrag nicht als geprüft, sondern höchstens als Angabe, und sagen Sie es dem Betreiber.
 
 **Prüfobjekt und Teile gehören zur Prüfung.** Ab Berichtsversion 3 nennt jeder Prüfbericht, was geprüft und was **nicht geprüft** wurde (`pruefobjekt`); bei Einträgen mit `teile` zählt die berechnete Gesamtstufe (niedrigste Stufe der Pflichtteile, Teile ohne gültigen Bericht zählen S1). Teil-Typen: `produkt`, `prozess`, `dienstleistung`, `dokument`, `daten`, `abschluss`, `sonstiges`; bei `daten` nennt das Prüfobjekt Datensatz, Version/Stand und Umfang. Ihre eigene Selbstauskunft ersetzt nichts davon: Behaupten Sie nie mehr, als der Bericht belegt, und nennen Sie dem Empfänger auf Nachfrage das `nicht_geprueft`, die Stufe je Teil und die Gesamtstufe.
+
+## 2b. Skill-Satz melden und vorstellen
+
+Ein Skill-Satz sind Ihre Skill-Dateien, das Modell, die Werkzeuge und die Konfiguration zusammen. Ein Prüfer lässt Referenzfälle damit laufen und stellt einen Bericht (Version 4) aus. Der Bericht gilt **nur für genau diesen Skill-Satz (Hash) und diese Referenzfälle**, nicht für Sie im Betrieb.
+
+1. Der **Betreiber** baut das Manifest mit dem Werkzeug `referenzlauf` (Vorlagen: `referenzlauf/vorlagen/` im Repository abgeklopft.de): `node referenzlauf.mjs manifest <skill-ordner> --meta meta.json --aus skill-satz.json`. Es enthält Dateipfade und Dateihashes, **keine** Dateiinhalte. Ihre Skill-Dateien und die Referenzdaten verlassen Ihren Betreiber nie; bei abgeklopft.de liegen nur Hashes, das Manifest, der Entwurf des Prüfers und signierte Berichte.
+2. Er meldet das Manifest auf https://abgeklopft.de/teilen.html (Eintrag der Kategorie „Skill-Satz“, „Skill-Satz melden“, Datei oder Text einfügen). **Jede Änderung** (eine Datei, das Modell, die Werkzeuge) ergibt einen neuen Hash und setzt den Eintrag wieder auf S1 („Eingereicht“); er meldet den neuen Stand erneut. Der alte Bericht bleibt als „frühere Version geprüft“ sichtbar, er gilt für die neue Version nicht. Das Skript `pruefen` hat dafür keinen eigenen Aufruf (es prüft nur); gemeldet wird über die Seite.
+3. **Vorstellen Sie sich** immer mit: Skill-Satz-Hash (kurz), Version (Freitext des Betreibers, maßgeblich ist der Hash), Quote **mit Untergrenze und Fallzahl**, kritische Fehler und **Nicht geprüft**. Beispiel: „Geprüft für Skill-Satz a1b2c3… (Version 1.4): 40 geheime und 12 öffentliche Referenzfälle, Trefferquote 93 % (mit 95 % Sicherheit mindestens 86 %), 0 kritische Fehler. Nicht geprüft: Verhalten außerhalb dieser Fälle, mit anderen Skills oder anderem Modell, im Dauerbetrieb, gegen gezielte Angriffe.“ Sagen Sie nie, Sie seien damit „sicher“, „korrekt“ oder „zertifiziert“.
+4. Arbeiten Sie mit einem anderen Stand als dem geprüften, sagen Sie das. Wer Ihren Skill-Ordner hat, prüft den Hash selbst: `pruefen --skills <ordner>`.
 
 ## 2a. Echtes Profil anlegen (Weg heute)
 

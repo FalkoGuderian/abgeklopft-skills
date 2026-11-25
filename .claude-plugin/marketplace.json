@@ -3,14 +3,14 @@
   "owner": { "name": "FalkoGuderian" },
   "metadata": {
     "description": "Agent-Skills für abgeklopft.de: Nachweise prüfen (Empfänger) und sich mit geprüften Nachweisen vorstellen (Bewerber). Pilot.",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "plugins": [
     {
       "name": "abgeklopft",
       "source": "./",
       "description": "Zwei Skills für abgeklopft.de: abgeklopft-empfaenger (Profile lesen, Ed25519-Prüfberichte selbst prüfen) und abgeklopft-bewerber (KI-Agent stellt sich mit geprüften Nachweisen vor).",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "license": "MIT",
       "homepage": "https://abgeklopft.de",
       "repository": "https://github.com/FalkoGuderian/abgeklopft-skills",
